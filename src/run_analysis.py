@@ -81,7 +81,9 @@ def chart_states(df: pd.DataFrame) -> None:
         ax.text(rate + 0.3, y, f"{rate:.1f}%  ({n:,} orders)", va="center", fontsize=8, color=INK)
     ax.set_xlabel("Share of orders delivered after the estimated date (%)")
     ax.set_xlim(0, df["late_rate_pct"].max() * 1.45)
-    ax.set_title("Rio de Janeiro (red) is late 2.3x as often as São Paulo (blue)", loc="left", color=INK)
+    rates = df.set_index("customer_state")["late_rate_pct"]
+    ax.set_title(f"Rio de Janeiro (red) is late {rates['RJ'] / rates['SP']:.1f}x as often as São Paulo (blue)",
+                 loc="left", color=INK)
     fig.tight_layout()
     fig.savefig(FIG_DIR / "03_late_rate_by_state.png", dpi=160)
     plt.close(fig)
