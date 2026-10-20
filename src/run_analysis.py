@@ -89,6 +89,43 @@ def chart_states(df: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def chart_first_review(df: pd.DataFrame, overall_pct: float) -> None:
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    labels = [f"{int(s)}★" for s in df["first_order_review"]]
+    bars = ax.bar(labels, df["repeat_rate_pct"], color=MUTED, width=0.6)
+    bars[0].set_color(ALERT)
+    bars[-1].set_color(ACCENT)
+    for b, v, n in zip(bars, df["repeat_rate_pct"], df["customers"]):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.3, f"{v:.1f}%", ha="center", color=INK)
+        ax.text(b.get_x() + b.get_width() / 2, 0.2, f"{n:,}\ncustomers",
+                ha="center", color="white", fontsize=8)
+    ax.axhline(overall_pct, color=INK, lw=1, ls="--")
+    ax.text(len(df) - 0.5, 4.7, f"dashed line = all customers ({overall_pct:.1f}%)",
+            ha="right", fontsize=8, color=INK)
+    ax.set_ylim(0, 5)
+    ax.set_xlabel("Review score of the customer's first order")
+    ax.set_ylabel("Customers who ordered again (%)")
+    ax.set_title("A 1-star first order and a 5-star one lead to almost the same repeat rate",
+                 loc="left", color=INK)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "04_first_review_vs_repeat.png", dpi=160)
+    plt.close(fig)
+
+
+def chart_categories(df: pd.DataFrame) -> None:
+    df = df.sort_values("gmv_brl")
+    fig, ax = plt.subplots(figsize=(8, 4.2))
+    ax.barh(df["category"].str.replace("_", " "), df["gmv_brl"] / 1e6, color=ACCENT)
+    for y, (gmv, rv) in enumerate(zip(df["gmv_brl"] / 1e6, df["avg_review"])):
+        ax.text(gmv + 0.02, y, f"R${gmv:.2f}M · {rv:.2f}★", va="center", fontsize=8, color=INK)
+    ax.set_xlabel("GMV, million BRL (item price + freight)")
+    ax.set_xlim(0, df["gmv_brl"].max() / 1e6 * 1.3)
+    ax.set_title("Top 10 categories by GMV: health & beauty leads", loc="left", color=INK)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "05_top_categories.png", dpi=160)
+    plt.close(fig)
+
+
 def headline_numbers(r: dict[str, pd.DataFrame]) -> None:
     g = r["01_growth"].copy()
     g["year"] = pd.to_datetime(g["month"]).dt.year
@@ -112,5 +149,8 @@ if __name__ == "__main__":
     chart_growth(res["01_growth"])
     chart_delay(res["02_delivery_vs_review"])
     chart_states(res["03_late_by_state"])
+    chart_first_review(res["05_first_review_vs_repeat"],
+                       float(res["04_repeat_purchase"].iloc[0]["repeat_rate_pct"]))
+    chart_categories(res["06_top_categories"])
     headline_numbers(res)
     print(f"\nSaved tables to {OUT_DIR} and charts to {FIG_DIR}")

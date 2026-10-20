@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olist delivery and retention report</title>
+<meta name="description" content="Analysis of about 96,000 Olist orders (2017–2018): growth, how late deliveries hurt reviews, and why customers don't come back. SQL + Python.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6f7f5;
+    --surface: #ffffff;
+    --ink: #14213d;
+    --muted: #5b6676;
+    --rule: #d9dde3;
+    --ontime: #1b7f5b;
+    --late: #c2412d;
+    --link: #1f4fbf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #11161f; --surface: #1a212d; --ink: #e8ecf2; --muted: #a3adbb;
+      --rule: #2c3543; --ontime: #4cc08f; --late: #f07a63; --link: #8fb0ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #11161f; --surface: #1a212d; --ink: #e8ecf2; --muted: #a3adbb;
+    --rule: #2c3543; --ontime: #4cc08f; --late: #f07a63; --link: #8fb0ff;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 17px/1.6 "Public Sans", system-ui, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 16px 80px; }
+  h1, h2, h3 { font-family: "Source Serif 4", Georgia, serif; line-height: 1.15; margin: 0; }
+  p, li { max-width: 66ch; }
+  a { color: var(--link); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 2px; }
+
+  .byline { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+
+  /* Hero: the one finding a reader should leave with */
+  .hero h1 { font-size: clamp(38px, 7vw, 64px); font-weight: 700; letter-spacing: -0.01em; }
+  .hero .lede { font-size: 19px; margin: 20px 0 0; }
+  .drop {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 20px;
+    margin: 40px 0 8px; padding: 28px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  }
+  .drop .score { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(48px, 11vw, 88px); font-weight: 600; line-height: 1; }
+  .drop .score.ontime { color: var(--ontime); }
+  .drop .score.late { color: var(--late); }
+  .drop .caption { display: block; font: 500 14px/1.3 "Public Sans", sans-serif; color: var(--muted); margin-top: 8px; }
+  .drop svg { width: 100%; height: 40px; }
+  .drop-note { color: var(--muted); font-size: 15px; margin: 0 0 56px; }
+
+  section { margin-top: 64px; }
+  section h2 { font-size: 30px; }
+  section .question { font-family: "Source Serif 4", Georgia, serif; font-style: italic; color: var(--muted); font-size: 19px; margin: 6px 0 20px; }
+  .facts { padding-left: 1.1em; }
+  .facts li { margin-bottom: 8px; }
+  strong { font-weight: 600; }
+  figure { margin: 28px 0; background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 12px; }
+  figure img { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 14px; color: #5b6676; margin-top: 8px; }
+
+  ol.recs { padding-left: 1.3em; }
+  ol.recs li { margin-bottom: 16px; }
+  ol.recs li::marker { font-family: "Source Serif 4", Georgia, serif; font-weight: 700; }
+
+  .small { font-size: 15px; color: var(--muted); }
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--rule); font-size: 15px; color: var(--muted); }
+  footer p { margin: 0 0 8px; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    main { padding-top: 36px; }
+    .drop { gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Arriving 1–3 days late costs Olist a full star</h1>
+    <p class="lede">An analysis of about 96,000 delivered orders from Olist, a Brazilian marketplace, between January 2017 and August 2018. It looks at three things: whether growth is holding up, how late deliveries affect reviews, and why so few customers come back.</p>
+
+    <div class="drop" role="img" aria-label="Average review falls from 4.29 for on-time orders to 3.29 for orders 1 to 3 days late">
+      <div><span class="score ontime">4.29</span><span class="caption">average review,<br>on time</span></div>
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="2" y1="10" x2="98" y2="30" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity=".45"/>
+      </svg>
+      <div><span class="score late">3.29</span><span class="caption">average review,<br>1–3 days late</span></div>
+    </div>
+    <p class="drop-note">6.7% of orders arrive after the promised date. "Late" means delivered on a later calendar day than the estimate.</p>
+  </header>
+
+  <section>
+    <h2>Growth</h2>
+    <p class="question">How fast is the business growing, and is the growth holding up?</p>
+    <ul class="facts">
+      <li>Orders from January to August grew <strong>140% year on year</strong>, from 22.0k in 2017 to 52.8k in 2018.</li>
+      <li>But monthly volume <strong>stopped rising in 2018</strong> and stayed at 6–7k orders a month.</li>
+    </ul>
+    <figure>
+      <img src="reports/figures/01_monthly_orders.png" alt="Line chart of monthly delivered orders: rising through 2017 with a Black Friday peak of 7,288 in November, then flat at 6,000–7,000 through 2018" loading="lazy">
+    </figure>
+  </section>
+
+  <section>
+    <h2>Delivery experience</h2>
+    <p class="question">How much do late deliveries hurt satisfaction, and where do they happen?</p>
+    <ul class="facts">
+      <li>Being 1–3 days late drops the average review by a full star. At <strong>4–7 days late, 68% of reviews are 1 or 2 stars</strong>.</li>
+      <li>Late orders cluster in <strong>Rio de Janeiro</strong> (12.1% late on 12.3k orders) and the Northeast (MA 17.5%, CE 13.8%, BA 12.2%). São Paulo is late only 4.5% of the time.</li>
+      <li>If Rio had matched São Paulo, about <strong>940 late orders</strong> would have been avoided.</li>
+    </ul>
+    <figure>
+      <img src="reports/figures/02_delay_vs_review.png" alt="Bar chart of average review by delay: 4.29 on time, 3.29 at 1–3 days late, falling further for longer delays" loading="lazy">
+    </figure>
+    <figure>
+      <img src="reports/figures/03_late_rate_by_state.png" alt="Horizontal bar chart of late-delivery rate by Brazilian state, with Rio de Janeiro highlighted at 12.1% and São Paulo at 4.5%" loading="lazy">
+    </figure>
+  </section>
+
+  <section>
+    <h2>Retention</h2>
+    <p class="question">Do customers come back, and does a good first order make them more likely to?</p>
+    <ul class="facts">
+      <li>Only <strong>3.0%</strong> of 93,096 customers ever placed a second order.</li>
+      <li>A good first order barely helps: <strong>2.8%</strong> come back after a 1-star first order, and <strong>3.1%</strong> after a 5-star one. Low retention is mainly not an experience problem.</li>
+      <li>Health &amp; beauty is the largest category by GMV (R$1.41M) and one of the best rated (4.19★).</li>
+    </ul>
+    <figure>
+      <img src="reports/figures/04_first_review_vs_repeat.png" alt="Bar chart of repeat-purchase rate by first-order review score: between 2.8% and 3.1% for every score from 1 to 5 stars" loading="lazy">
+    </figure>
+    <figure>
+      <img src="reports/figures/05_top_categories.png" alt="Horizontal bar chart of the top 10 categories by GMV, led by health and beauty at 1.41 million reais" loading="lazy">
+    </figure>
+  </section>
+
+  <section>
+    <h2>What I would do</h2>
+    <ol class="recs">
+      <li><strong>Give honest delivery estimates in high-risk states.</strong> Customers judge an order against the promised date, not against absolute speed. More conservative estimates for Rio and the Northeast could cut late orders with no change to logistics. Longer promises may lower conversion, so I would run an A/B test with review score as the main metric and conversion rate as the guardrail.</li>
+      <li><strong>Fix logistics where the volume is.</strong> Rio combines a high late rate with the second-largest order volume, so carrier or warehouse improvements there have the biggest absolute impact.</li>
+      <li><strong>Treat retention as its own problem.</strong> Start with how often each category is naturally bought (furniture and watches are rare purchases) and whether customers even know they bought through Olist. Then test CRM campaigns in high-frequency categories such as health &amp; beauty.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Limitations</h2>
+    <p>The dataset is public and anonymised, with no traffic, marketing or conversion data, so it cannot explain the 2018 plateau on its own. Review scores exist only for reviewed orders, and the link between delay and score is a correlation, although the dose-response pattern is strong.</p>
+  </section>
+
+  <footer>
+    <p>Built with SQL (DuckDB) and Python (pandas, matplotlib). <a href="https://github.com/irenasikia-svg/olist-analysis">See the queries and code on GitHub</a>.</p>
+    <p>Data: <a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce">Brazilian E-Commerce Public Dataset by Olist</a>, CC BY-NC-SA 4.0. Charts on this page are derived from it and shared under the same licence.</p>
+    <p>By ced, 2026.</p>
+  </footer>
+</main>
+</body>
+</html>

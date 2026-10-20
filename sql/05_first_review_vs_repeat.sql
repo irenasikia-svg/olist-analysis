@@ -3,7 +3,7 @@
 WITH ranked AS (
     SELECT d.customer_unique_id, d.order_id, d.order_purchase_timestamp,
            ROW_NUMBER() OVER (PARTITION BY d.customer_unique_id
-                              ORDER BY d.order_purchase_timestamp) AS rn,
+                              ORDER BY d.order_purchase_timestamp, d.order_id) AS rn,
            COUNT(*)     OVER (PARTITION BY d.customer_unique_id)   AS n_orders
     FROM delivered_orders d
 ),
